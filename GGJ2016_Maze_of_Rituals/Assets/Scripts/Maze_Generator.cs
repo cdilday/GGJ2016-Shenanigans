@@ -2,12 +2,15 @@
 using System.Collections;
 using System.Collections.Generic;
 using System;
+using System.Linq;
 
 public class Maze_Generator : MonoBehaviour {
 
 	//top left corner is 0,0. bottom right is width, height.
 
-	public GameObject prefab;	
+	public GameObject prefab;
+	public GameObject spawnPoint;
+	public GameObject collectible;
 	public Maze_Cell [,] maze;
 	public GameObject [,] mazeObjects;
 	public int height;
@@ -16,25 +19,141 @@ public class Maze_Generator : MonoBehaviour {
 
 	// Use this for initialization
 	void Start () {
-		Generate_Initial ();
-		Maze_Cell [] path = AStarPathfinder(new Vector2(0,0), new Vector2(5,5));
+		//put player in their proper position
+		GameObject.Find ("Player").transform.position = new Vector3(((int)(width/2)) + 0.5f, ((int)(height/ -2)) -0.5f, -0.03f);
+		StartCoroutine(GenerateMaze ());
+		/*Maze_Cell [] path = AStarPathfinder(new Vector2(0,0), new Vector2(5,5));
 		foreach (Maze_Cell cell in path) {
 			Debug.Log (cell.name);
-		}
-	}
-	
-	// Update is called once per frame
-	void Update () {
-	
+		}*/
 	}
 
-	void Generate_Initial (){
+	IEnumerator GenerateMaze()
+	{
 
-		//first fill the maze with cells and wall them if they're on an edge
 		mazeObjects = new GameObject[width, height];
 		maze = new Maze_Cell[width, height];
-		for (int x = 0; x < width; x++) {
-			for( int y = 0; y < height; y++){
+
+		List<Maze_Cell> activeCells = new List<Maze_Cell>();
+		//make a new mazecell at a random position
+		int x = UnityEngine.Random.Range (0, width);
+		int y = UnityEngine.Random.Range (0, height);
+
+		GameObject temp = Instantiate(prefab, new Vector3( x + 0.5f, (y * -1) - 0.5f, 0f), Quaternion.identity) as GameObject;
+		maze[x,y] = temp.GetComponent<Maze_Cell>();
+		maze[x,y].GridPos = new Vector2(x, y);
+		//set the parent to the generator and name them for easier reading in editor
+		temp.transform.SetParent(transform);
+		temp.name = "Cell " + x + ", " + y;
+		mazeObjects[x,y] = temp;
+		activeCells.Add (maze[x,y]);
+		yield return new WaitForSeconds(0.00001f);
+		while (activeCells.Count > 0) {
+			GenerationStep(activeCells);
+			//uncomment this to see the generation live
+			//yield return new WaitForSeconds(0.00001f);
+		}
+
+		//place the important things
+		//spawn point
+		x = (int)(width / 2);
+		y = (int)(height / 2);
+
+		GameObject sp = Instantiate(spawnPoint, new Vector3(x + 0.5f, (y *-1) -0.5f, -0.01f), Quaternion.identity) as GameObject;
+		//break walls on top of the spawn point
+		//start with middle
+		if (maze [x, y].connections [0] == null) {
+			maze[x,y].MakeConnection(maze[x,y-1]);
+		}
+		if (maze [x, y].connections [1] == null) {
+			maze[x,y].MakeConnection(maze[x+1,y]);
+		}
+		if (maze [x, y].connections [2] == null) {
+			maze[x,y].MakeConnection(maze[x,y+1]);
+		}
+		if (maze [x, y].connections [3] == null) {
+			maze[x,y].MakeConnection(maze[x-1,y]);
+		}
+		//Now the up one, only need to check left and right
+		if (maze [x, y-1].connections [1] == null) {
+			maze[x,y-1].MakeConnection(maze[x+1,y-1]);
+		}
+		if (maze [x, y-1].connections [3] == null) {
+			maze[x,y-1].MakeConnection(maze[x-1,y-1]);
+		}
+		//Now down, same checks
+		if (maze [x, y+1].connections [1] == null) {
+			maze[x,y+1].MakeConnection(maze[x+1,y+1]);
+		}
+		if (maze [x, y+1].connections [3] == null) {
+			maze[x,y+1].MakeConnection(maze[x-1,y+1]);
+		}
+		//Now check right, only need to check verticals
+		if (maze [x+1, y].connections [0] == null) {
+			maze[x+1,y].MakeConnection(maze[x+1,y-1]);
+		}
+		if (maze [x+1, y].connections [2] == null) {
+			maze[x+1,y].MakeConnection(maze[x+1,y+1]);
+		}
+		//Now check left, only need to check verticals. Spawn point should be clear after this
+		if (maze [x-1, y].connections [0] == null) {
+			maze[x-1,y].MakeConnection(maze[x-1,y-1]);
+		}
+		if (maze [x-1, y].connections [2] == null) {
+			maze[x-1,y].MakeConnection(maze[x-1,y+1]);
+		}
+
+		//now place the collectibles. First, let's get all the maze points with 3 walls
+		List<Maze_Cell> deadEnds = new List<Maze_Cell>();
+		GetAllDeadEnds (deadEnds);
+		//sort it by distance from the spawn point
+		foreach (Maze_Cell end in deadEnds) {
+			end.tempDistance = Mathf.Abs (Vector2.Distance(end.GridPos, new Vector2(x,y)));
+		}
+		deadEnds = deadEnds.OrderBy(s=>s.tempDistance).ToList();
+		//now make and place the collectibles
+		for(int i = 0; i < 3; i++){
+			GameObject item = Instantiate(collectible, new Vector3( deadEnds[deadEnds.Count - 1 - (i*2)].GridPos.x + 0.5f,
+			                                                       (deadEnds[deadEnds.Count - 1 - (i*2)].GridPos.y* -1) - 0.5f,
+			                                                       - 0.1f), Quaternion.identity) as GameObject;
+			item.GetComponent<Collectible>().giveType(i);
+		}
+	}
+
+	void GenerationStep(List<Maze_Cell> activeCells){
+		int currIndex = activeCells.Count- 1;
+		Maze_Cell currCell = activeCells [currIndex];
+		int dir = currCell.getRandomOpenDirection();
+		if (dir == -1) {
+			activeCells.RemoveAt(currIndex);
+			return;
+		}
+		if(inBounds(currCell, dir)){
+			int x, y;
+			switch(dir){
+			case 0:
+				x = (int) currCell.GridPos.x;
+				y = (int) currCell.GridPos.y - 1;
+				break;
+			case 1:
+				x = (int) currCell.GridPos.x + 1;
+				y = (int) currCell.GridPos.y;
+				break;
+			case 2:
+				x = (int) currCell.GridPos.x;
+				y = (int) currCell.GridPos.y + 1;
+				break;
+			case 3:
+				x = (int) currCell.GridPos.x - 1;
+				y = (int) currCell.GridPos.y;
+				break;
+			default:
+				x = (int) currCell.GridPos.x + 1;
+				y = (int) currCell.GridPos.y;
+				break;
+			}
+			Maze_Cell neightbor = maze[x,y];
+			if(neightbor == null){
 				GameObject temp = Instantiate(prefab, new Vector3( x + 0.5f, (y * -1) - 0.5f, 0f), Quaternion.identity) as GameObject;
 				maze[x,y] = temp.GetComponent<Maze_Cell>();
 				maze[x,y].GridPos = new Vector2(x, y);
@@ -42,51 +161,55 @@ public class Maze_Generator : MonoBehaviour {
 				temp.transform.SetParent(transform);
 				temp.name = "Cell " + x + ", " + y;
 				mazeObjects[x,y] = temp;
+				activeCells.Add (maze[x,y]);
+				//make the connection
+				currCell.MakeConnection(maze[x,y]);
 
-				//now make walls if they're edges
-				//up edge
-				if(y == 0){
+			}
+			else{
+				currCell.MakeWall(dir);
+				//check adjacent walls, activate if needed
+				if(y != 0 && maze[x, y-1] != null && maze[x, y-1].walls[2].activeSelf){
 					maze[x,y].MakeWall(0);
 				}
-				//right edge
-				if(x == width - 1){
+				if(x != width - 1 && maze[x+1, y] != null && maze[x+1, y].walls[3].activeSelf){
 					maze[x,y].MakeWall(1);
 				}
-				//down edge
-				if(y == height - 1){
+				if(y != height - 1 && maze[x, y+1] != null && maze[x, y+1].walls[0].activeSelf){
 					maze[x,y].MakeWall(2);
 				}
-				//left edge
-				if(x == 0)
-				{
+				if(x != 0 && maze[x-1, y] != null && maze[x-1, y].walls[1].activeSelf){
 					maze[x,y].MakeWall(3);
 				}
 			}
 		}
-
-		//now set the connections
-		for (int x = 0; x < width; x++) {
-			for( int y = 0; y < height; y++){
-				//every connection needs to check if it's in bounds to prevent out of range errors
-				//up connection
-				if(y != 0 && maze[x, y-1].connections[2] == null){
-					maze[x,y].MakeConnection(maze[x, y-1]);
-				}
-				//right edge
-				if(x != width - 1 && maze[x+1,y].connections[3] == null){
-					maze[x,y].MakeConnection(maze[x+1, y]);
-				}
-				//down edge
-				if(y != height - 1 && maze[x,y+1].connections[0] == null){
-					maze[x,y].MakeConnection(maze[x, y+1]);
-				}
-				//left edge
-				if(x != 0 && maze[x-1,y].connections[1] == null){
-					maze[x,y].MakeConnection(maze[x-1, y]);
-				}
-			}
+		else{
+			currCell.MakeWall(dir);
 		}
+	}
 
+	//checks if the current cell's direction is in bounds
+	public bool inBounds(Maze_Cell cell, int direction)
+	{
+		switch (direction) {
+		case 0:
+			if((int)cell.GridPos.y == 0)
+				return false;
+			return true;
+		case 1:
+			if((int)cell.GridPos.x == width -1)
+				return false;
+			return true;
+		case 2:
+			if((int)cell.GridPos.y == height - 1)
+				return false;
+			return true;
+		case 3:
+			if((int)cell.GridPos.x == 0)
+				return false;
+			return true;
+		}
+		return false;
 	}
 
 	//uses A* to find a path from the start position to the target position
@@ -139,6 +262,18 @@ public class Maze_Generator : MonoBehaviour {
 		}
 		return path.ToArray ();
 		
+	}
+
+	void GetAllDeadEnds(List<Maze_Cell> deadEnds)
+	{
+		for (int x = 0; x < width; x++) {
+			for (int y = 0; y < height; y++) {
+				if (maze[x,y].getEdgeCount() == 3){
+					deadEnds.Add(maze[x,y]);
+				}
+			}
+		}
+
 	}
 
 }
