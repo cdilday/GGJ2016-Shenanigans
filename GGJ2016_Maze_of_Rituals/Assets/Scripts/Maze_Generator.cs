@@ -1,5 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
+using System;
 
 public class Maze_Generator : MonoBehaviour {
 
@@ -15,6 +17,10 @@ public class Maze_Generator : MonoBehaviour {
 	// Use this for initialization
 	void Start () {
 		Generate_Initial ();
+		Maze_Cell [] path = AStarPathfinder(new Vector2(0,0), new Vector2(5,5));
+		foreach (Maze_Cell cell in path) {
+			Debug.Log (cell.name);
+		}
 	}
 	
 	// Update is called once per frame
@@ -82,4 +88,57 @@ public class Maze_Generator : MonoBehaviour {
 		}
 
 	}
+
+	//uses A* to find a path from the start position to the target position
+	//TODO: Currently actually Djikstra's but don't tell anyone
+	public Maze_Cell [] AStarPathfinder(Vector2 start, Vector2 target){
+		//first set up all maze_cells with a temp Distance that is huge
+		for (int x = 0; x < width; x++) {
+			for( int y = 0; y < height; y++){
+				maze[x,y].tempDistance = Mathf.Infinity;
+			}
+		}
+		// this will be the path at the end to return
+		List<Maze_Cell> path = new List<Maze_Cell>();
+		//this is the cdictionary used to store cell for previously traversed cells
+		Dictionary<Maze_Cell, Maze_Cell> prev = new Dictionary<Maze_Cell, Maze_Cell>();
+
+		List<Maze_Cell> priorityQueue = new List<Maze_Cell>();
+
+		Maze_Cell currCell;
+		maze [(int)start.x, (int)start.y].tempDistance = 0;
+		priorityQueue.Insert(0, maze[(int)start.x,(int) start.y]);
+
+		while(priorityQueue.Count != 0){
+			priorityQueue.Sort();
+			currCell = priorityQueue[0];
+			priorityQueue.RemoveAt(0);
+
+			if( (int)currCell.GridPos.x == (int) target.x && (int)currCell.GridPos.y == (int) target.y){
+				//reached goal, populate the path array and return it
+				Debug.Log ("Made it!");
+				Maze_Cell temp;
+				while(prev.TryGetValue(currCell, out temp)){
+					path.Insert (0, currCell);
+					currCell = prev[currCell];
+				}
+				path.Insert(0, currCell);
+				break;
+			}
+
+			foreach(Maze_Cell adj in currCell.connections){
+				if(adj != null){
+					float alt = currCell.tempDistance + Vector2.Distance(currCell.GridPos, adj.GridPos);
+					if(alt < adj.tempDistance){
+						adj.tempDistance = alt;
+						prev[adj] = currCell;
+						priorityQueue.Add (adj);
+					}
+				}
+			}
+		}
+		return path.ToArray ();
+		
+	}
+
 }

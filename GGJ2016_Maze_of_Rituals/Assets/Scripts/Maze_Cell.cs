@@ -1,7 +1,8 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System;
 
-public class Maze_Cell : MonoBehaviour {
+public class Maze_Cell :  MonoBehaviour, IComparable<Maze_Cell> {
 
 	//position on the grid
 	public Vector2 GridPos;
@@ -11,6 +12,8 @@ public class Maze_Cell : MonoBehaviour {
 	//the child objects that serve as walls for the player
 	public GameObject [] walls;
 
+
+	public float tempDistance;
 	// Use this for initialization
 	void Awake () {
 		connections = new Maze_Cell[4];
@@ -122,5 +125,13 @@ public class Maze_Cell : MonoBehaviour {
 		connections[side] = null;
 		walls[side].SetActive(true);
 
+	}
+
+	public int CompareTo(Maze_Cell other){
+		return (int) Mathf.Abs(tempDistance - other.tempDistance);
+	}
+
+	public string ToString(){
+		return gameObject.name;
 	}
 }
