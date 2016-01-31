@@ -16,21 +16,9 @@ public class Maze_Generator : MonoBehaviour {
 	public int height;
 	public int width;
 
-
-	// Use this for initialization
-	void Start () {
-		//put player in their proper position
-		GameObject.Find ("Player").transform.position = new Vector3(((int)(width/2)) + 0.5f, ((int)(height/ -2)) -0.5f, -0.03f);
-		StartCoroutine(GenerateMaze ());
-		/*Maze_Cell [] path = AStarPathfinder(new Vector2(0,0), new Vector2(5,5));
-		foreach (Maze_Cell cell in path) {
-			Debug.Log (cell.name);
-		}*/
-	}
-
-	IEnumerator GenerateMaze()
+	public IEnumerator GenerateMaze()
 	{
-
+		GameObject.Find ("Player").transform.position = new Vector3 (((int)(width / 2)) + 0.5f, ((int)(height / -2)) - 0.5f, -0.03f);
 		mazeObjects = new GameObject[width, height];
 		maze = new Maze_Cell[width, height];
 
