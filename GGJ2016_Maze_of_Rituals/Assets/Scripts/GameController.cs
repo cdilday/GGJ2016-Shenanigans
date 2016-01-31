@@ -36,6 +36,8 @@ public class GameController : MonoBehaviour {
 
 			timerText.text = niceTime;
 		}
+		if (hasWon)
+			player.sightDistance += 0.05f;
 	}
 
 	IEnumerator Countdown(){

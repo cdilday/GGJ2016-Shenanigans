@@ -91,6 +91,34 @@ public class Maze_Generator : MonoBehaviour {
 			maze[x-1,y].MakeConnection(maze[x-1,y+1]);
 		}
 
+		//Maze is very 1 path centric. Let's open it up a bit;
+		int numToBreak = (int)(Mathf.Min (width, height)/ 5);
+		int tempx = UnityEngine.Random.Range (1, width - 2);
+		int tempy = UnityEngine.Random.Range (1, height - 2);
+		for (int j = 0; j < numToBreak; j++) {
+			while(maze[tempx,tempy].getEdgeCount() == 0){
+				tempx = UnityEngine.Random.Range (1, width - 2);
+				tempy = UnityEngine.Random.Range (1, height - 2);
+			}
+			int wallNum = maze[tempx,tempy].getRandomWall();
+			switch(wallNum){
+			case 0:
+				maze[tempx,tempy].MakeConnection(maze[tempx, tempy-1]);
+				break;
+			case 1:
+				maze[tempx,tempy].MakeConnection(maze[tempx+1, tempy]);
+				break;
+			case 2:
+				maze[tempx,tempy].MakeConnection(maze[tempx, tempy+1]);
+				break;
+			case 3:
+				maze[tempx,tempy].MakeConnection(maze[tempx-1, tempy]);
+				break;
+			default:
+				break;
+			}
+		}
+
 		//now place the collectibles. First, let's get all the maze points with 3 walls
 		List<Maze_Cell> deadEnds = new List<Maze_Cell>();
 		GetAllDeadEnds (deadEnds);

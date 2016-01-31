@@ -181,4 +181,13 @@ public class Maze_Cell :  MonoBehaviour, IComparable<Maze_Cell> {
 		return openDirs[UnityEngine.Random.Range (0, openDirs.Count)]; 
 
 	}
+
+	public int getRandomWall(){
+		List<int> wallNums = new List<int> ();
+		for (int i = 0; i<4; i++) {
+			if( walls[i].activeSelf)
+				wallNums.Add(i);
+		}
+		return wallNums[UnityEngine.Random.Range (0, wallNums.Count-1 )];
+	}
 }
