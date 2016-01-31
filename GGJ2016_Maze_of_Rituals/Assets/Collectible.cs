@@ -28,4 +28,12 @@ public class Collectible : MonoBehaviour {
 			break;
 		}
 	}
+
+	void OnTriggerEnter(Collider other){
+		if (other.gameObject.name == "Player"){
+			other.GetComponent<Player>().inventory[type] = true;
+			//TODO: play collection sound
+			Destroy (gameObject);
+		}
+	}
 }

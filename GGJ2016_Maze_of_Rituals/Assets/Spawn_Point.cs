@@ -9,7 +9,7 @@ public class Spawn_Point : MonoBehaviour {
 	void Start () {
 	}
 	
-	void onTriggerEnter(Collider other){
+	void OnTriggerEnter(Collider other){
 		if (other.gameObject.name == "Player"){
 			if(place_points [0].placed && place_points [0].placed && place_points [0].placed) {
 				Debug.Log ( "Player Wins!");
